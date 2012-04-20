@@ -13,39 +13,43 @@ exports.php_fpmi = (function(){
 
     fpmi.init = function(directory, filename){
      
-     return fcgi_interface([
-        ["SCRIPT_FILENAME", directory + "/" + filename],
-        ["QUERY_STRING", ""],
-        ["REQUEST_METHOD", "GET"],
-        ["SCRIPT_NAME", filename],
-        ["REQUEST_URI", filename],
-        ["PHP_SELF", filename],
-        ["DOCUMENT_ROOT", directory],
-        ["GATEWAY_INTERFACE", "CGI/1.1"],
-        ["SERVER_SOFTWARE", "testingtestertest/0.0.1"],
-        ["HTTP_CONNECTION", "Keep-Alive"],
-        ["HTTP_ACCEPT", "*/*"],
-        ]);       
+        return fcgi_interface([
+            ["SCRIPT_FILENAME", directory + "/" + filename],
+            ["QUERY_STRING", ""],
+            ["REQUEST_METHOD", "GET"],
+            ["SCRIPT_NAME", filename],
+            ["REQUEST_URI", filename],
+            ["PHP_SELF", filename],
+            ["DOCUMENT_ROOT", directory],
+            ["GATEWAY_INTERFACE", "CGI/1.1"],
+            ["SERVER_SOFTWARE", "testingtestertest/0.0.1"],
+            ["HTTP_conn", "Keep-Alive"],
+            ["HTTP_ACCEPT", "*/*"],
+            ]);       
         
     }
     
 
-    function fcgi_interface(opts) {
+    function fcgi_interface(opts, response) {
+        if (typeof response !== "object"){
+            response = false;
+        }
+        var
+        _recid = 0,
+        writer = null,
+        parser = null,
+        plen = fcgi.getParamLength(opts),
+        FCGI_RESPONDER = fcgi.constants.role.FCGI_RESPONDER,
+        FCGI_BEGIN = fcgi.constants.record.FCGI_BEGIN,
+        FCGI_STDIN = fcgi.constants.record.FCGI_STDIN,
+        FCGI_STDOUT = fcgi.constants.record.FCGI_STDOUT,
+        FCGI_PARAMS = fcgi.constants.record.FCGI_PARAMS,
+        FCGI_END = fcgi.constants.record.FCGI_END,
+        conn = new net.Stream();
         
-        var connection = new net.Stream();
-        connection.setNoDelay(true);
-        connection.setTimeout(0);
-        var _recid = 0;
-        var writer = null;
-        var parser = null;
-        var plen = fcgi.getParamLength(opts);
-        var FCGI_RESPONDER = fcgi.constants.role.FCGI_RESPONDER;
-        var FCGI_BEGIN = fcgi.constants.record.FCGI_BEGIN;
-        var FCGI_STDIN = fcgi.constants.record.FCGI_STDIN;
-        var FCGI_STDOUT = fcgi.constants.record.FCGI_STDOUT;
-        var FCGI_PARAMS = fcgi.constants.record.FCGI_PARAMS;
-        var FCGI_END = fcgi.constants.record.FCGI_END;
-    
+        conn.setNoDelay(true);
+        conn.setTimeout(0);
+        
         var header = {
             "version": fcgi.constants.version,
             "type": FCGI_BEGIN,
@@ -56,7 +60,7 @@ exports.php_fpmi = (function(){
     
         var begin = {
             "role": FCGI_RESPONDER,
-            "flags": keepalive?fcgi.constants.keepalive.ON:fcgi.constants.keepalive.OFF
+            "flags": keepalive ? fcgi.constants.keepalive.ON : fcgi.constants.keepalive.OFF
         };
 
         function sendRequest() {
@@ -75,7 +79,7 @@ exports.php_fpmi = (function(){
                 "flags": keepalive?fcgi.constants.keepalive.ON:fcgi.constants.keepalive.OFF
             });
         
-            connection.write(writer.tobuffer());
+            conn.write(writer.tobuffer());
         
             writer.writeHeader({
                 "version": fcgi.constants.version,
@@ -87,7 +91,7 @@ exports.php_fpmi = (function(){
         
             writer.writeParams(opts);
         
-            connection.write(writer.tobuffer());
+            conn.write(writer.tobuffer());
         
             writer.writeHeader({
                 "version": fcgi.constants.version,
@@ -97,7 +101,7 @@ exports.php_fpmi = (function(){
                 "paddingLength": 0
             });
         
-            connection.write(writer.tobuffer());
+            conn.write(writer.tobuffer());
         
             writer.writeHeader({
                 "version": fcgi.constants.version,
@@ -107,14 +111,14 @@ exports.php_fpmi = (function(){
                 "paddingLength": 0
             });
         
-            connection.write(writer.tobuffer());
+            conn.write(writer.tobuffer());
         }
  	
-        connection.ondata = function (buffer, start, end) {
+        conn.ondata = function (buffer, start, end) {
             parser.execute(buffer, start, end);
         };
 
-        connection.addListener("connect", function() {
+        conn.addListener("connect", function() {
             writer = new fcgi.writer();
             //writer.encoding = "binary";
         
@@ -128,75 +132,55 @@ exports.php_fpmi = (function(){
             
                 if(record.header.type == FCGI_STDOUT){
                     body = record.body;
+                    
+                    //put in code for response to send out the body to a server
+                    //right now just output the response from php to console log wrapped in body tags
+                    
                     console.log("<BODY>");
                     console.log(body);
                     console.log("</BODY>");
-                    parts = body.split("\r\n\r\n");
+                    
+                //split the body up into sections
+                //parts = body.split("\r\n\r\n");
 
-                    headers = parts[0];
-                    headerParts = headers.split("\r\n");
-
-                    body = parts[1];
-
-                    responseStatus = 200;
-
-                    headers = [];
-                    try {
-                        for(i in headerParts) {
-                            header = headerParts[i].split(': ');
-                            if (header[0].indexOf('Status') >= 0) {
-                                responseStatus = header[1].substr(0, 3);
-                                continue;
-                            }
-
-                            headers.push([header[0], header[1]]);
-                        }
-                    } catch (err) {
-                    //console.log(err);
-                    }
-                
                 } 
                 //console.log(record);
                 if(record.header.type == FCGI_END) {
                     console.log("End Transaction");
+                    conn.end();
                 }
                 recordId = record.header.recordId;
             };
 
             parser.onHeader = function(header) {
-                body = "";
-                if(keepalive) {
-                    if(header.recordId != _recid) {
-                        _recid = header.recordId;
-                        sendRequest(connection);
-                    }
-                }
+                //do something when we get the header
             };
 
             parser.onError = function(err) {
                 console.log(JSON.stringify(err, null, "\t"));
             };
 
-            sendRequest(connection);
+            sendRequest(conn);
         });
 
-        connection.addListener("timeout", function() {
-            connection.end();
+        conn.addListener("timeout", function() {
+            conn.end();
         });
 
-        connection.addListener("end", function() {
-            });
+        conn.addListener("end", function() {
+            console.log("conn is ended");
+        });
 
-        connection.addListener("close", function() {
-        
-            });
+        conn.addListener("close", function() {
+            console.log("conn is closed");
+        });
 
-        connection.addListener("error", function(err) {
+        conn.addListener("error", function(err) {
             console.log(JSON.stringify(err));
-            connection.end();
+            conn.end();
         });
 
-        connection.connect(9000, "localhost");
+        conn.connect(9000, "localhost");
     }
     
     
