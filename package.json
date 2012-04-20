@@ -1,0 +1,17 @@
+{
+  "name": "TestingTesterTest",
+  "description": "Testing framework for php apps run through php-fpm and node.js",
+  "version": "0.0.1",
+  "author": "Levi DeHaan <levi@dehaandev.com>",
+  "maintainers": [ 
+    { "name": "Levi DeHaan", "email": "levi@dehaandev.com" }
+  ],
+  "contributors": [ 
+    { "name": "Levi DeHaan", "email": "levi@dehaandev.com" }
+  ],
+  "keywords": ["mim", "socket.io"],
+  "repository": "git://github.com/levidehaan/testingtestertest",
+  "bugs" : "https://github.com/levidehaan/testingtestertest/issues",
+  "main": "main",
+  "engines": { "node": ">= 0.6.0" }
+}
