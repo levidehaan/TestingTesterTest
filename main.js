@@ -1,6 +1,7 @@
 /* 
  * TestingTesterTest
  * A testing framework for php programs running through php-fpm and node.js
+ * Thanks to Andrew Johnston for writing node-fastcgi-parser fcgi.js its awesome :)
  */
 
 var 
@@ -8,34 +9,24 @@ mime = require('mime'),
 fs = require('fs'),
 util = require('util'),
 net = require('net'),
-fcgi = require("./fcgi/fcgi.js");
+fcgi = require("./fcgi/fcgi.js"),
+filename, directory;
+
+filename = "test.php";
+directory = __dirname;
 
 var params = [
-["SCRIPT_FILENAME", "/home/th3m4d0n3/NetBeansProjects/TestingTesterTest/test.php"],
+["SCRIPT_FILENAME", directory + "/" + filename],
 ["QUERY_STRING", ""],
 ["REQUEST_METHOD", "GET"],
-["CONTENT_TYPE", ""],
-["CONTENT_LENGTH", ""],
-["SCRIPT_NAME", "/test.php"],
-["REQUEST_URI", "/test.php"],
-["QUERY_STRING", ""],
-["DOCUMENT_URI", "/test.php"],
-["DOCUMENT_ROOT", "/home/th3m4d0n3/NetBeansProjects/TestingTesterTest"],
-["PHP_SELF", "/test.php"],
-["SERVER_PROTOCOL", "HTTP/1.1"],
+["SCRIPT_NAME", filename],
+["REQUEST_URI", filename],
+["PHP_SELF", filename],
+["DOCUMENT_ROOT", directory],
 ["GATEWAY_INTERFACE", "CGI/1.1"],
-["SERVER_SOFTWARE", "nginx/0.7.67"],
-["REMOTE_ADDR", "10.11.12.8"],
-["REMOTE_PORT", "4335"],
-["SERVER_ADDR", "10.11.12.8"],
-["SERVER_PORT", "82"],
-["SERVER_NAME", "_"],
-["REDIRECT_STATUS", "200"],
-["HTTP_USER_AGENT", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0; Supplied by blueyonder; .NET CLR 1.1.4322; .NET CLR 2.0.50215)"],
-["HTTP_ACCEPT_ENCODING", "none"],
+["SERVER_SOFTWARE", "testingtestertest/0.0.1"],
 ["HTTP_CONNECTION", "Keep-Alive"],
 ["HTTP_ACCEPT", "*/*"],
-["HTTP_HOST", "pr.icms.owner.net:82"]
 ];
 
 var requests = 0;
@@ -121,27 +112,7 @@ function client() {
         
         connection.write(writer.tobuffer());
     }
-    /*
-	function sendRequest() {
-		header.type = FCGI_BEGIN;
-		header.recordId = requests++;
-		header.contentLength = 8;
-		writer.writeHeader(header);
-		writer.writeBegin(begin);
-		connection.write(writer.tobuffer());
-		header.type = FCGI_PARAMS;
-		header.contentLength = plen;
-		writer.writeHeader(header);
-		writer.writeParams(params);
-		connection.write(writer.tobuffer());
-		header.contentLength = 0;
-		writer.writeHeader(header);
-		connection.write(writer.tobuffer());
-		header.type = FCGI_STDIN;
-		writer.writeHeader(header);
-		connection.write(writer.tobuffer());
-	}
-*/		
+ 	
     connection.ondata = function (buffer, start, end) {
         parser.execute(buffer, start, end);
     };
@@ -190,7 +161,7 @@ function client() {
             } 
             //console.log(record);
             if(record.header.type == FCGI_END) {
-                responses++;
+                console.log("End Transaction");
             }
             recordId = record.header.recordId;
         };
@@ -209,13 +180,6 @@ function client() {
             console.log(JSON.stringify(err, null, "\t"));
         };
 
-        /*		
-		parser.onBody = function(buffer, start, end) {
-			body += buffer.toString("utf8", start, end);
-			//process.stdout.write(buffer.slice(start, end));
-		};
-*/
-
         sendRequest(connection);
     });
 
@@ -227,9 +191,7 @@ function client() {
         });
 
     connection.addListener("close", function() {
-        setTimeout(function() {
-            connection.connect(9000, "localhost") || null;
-        }, 0);
+        
     });
 
     connection.addListener("error", function(err) {
@@ -240,18 +202,4 @@ function client() {
     connection.connect(9000, "localhost");
 }
 
-var clients = 1;
-while(clients--) {
-    client();
-}
-
-var then = new Date().getTime();	
-var last = 0;
-setInterval(function() {
-    var now = new Date().getTime();
-    var elapsed = now - then;
-    var rps = responses - last;
-    console.log("Requests: " + requests + ", Responses: " + responses + ", RPS: " + rps/(elapsed/1000));
-    then = new Date().getTime();
-    last = responses;
-}, 1000);
+client();

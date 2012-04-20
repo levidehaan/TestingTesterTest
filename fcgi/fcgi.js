@@ -1,6 +1,24 @@
 /*
 FastCGI Parser for Node.js
 https://github.com/billywhizz/node-fastcgi-parser
+By: Andrew Johnston
+
+TODO: 
+* make the write handle a stream and write directly to it without creating buffers
+* we assume everything is ascii
+* allow chunked parsing of body (not really necessary as fastcgi protocol allows breaking up of body into separate messages
+* allow writer to write to an existing buffer at offset passed in. should be a lot quicker than allocating and slicing...
+* don't do pre-allocated buffers in parser. just pass back start and end of current buffer to the callee. should be a lot faster
+* Add a resetonerror property to allow parser to stop processing immediately if an error is encountered
+* Add a reset method to clear the current parser
+* Pool of parsers?
+* make buffering more efficent - maybe parse down into the body types and raise event for each param etc.
+* think about overhead per connection
+* allow a http stream to be parsed on the fly and wrapped in cgi (in and out). maybe inherit from node.js stream and implement pipe (like HTTPS)
+* test for buffer overruns
+* unit tests
+* improve binary parser
+
 */
 
 var constants = {
