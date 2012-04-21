@@ -8,12 +8,10 @@ var
 mime = require('mime'),
 fs = require('fs'),
 util = require('util'),
-php_fpmi = require("./phpfpm-interface.js").php_fpmi,
+php_fpmi = require("./phpfpm-interface.js"),
 filename, directory;
-
 
 filename = "test.php";
 directory = __dirname;
 
-php_connect = new php_fpmi();
-php_connect.init(directory, filename);
+php_fpmi.init(directory, filename);
